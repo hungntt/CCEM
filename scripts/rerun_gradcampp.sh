@@ -25,3 +25,33 @@ python src/xai/explanation/run_maples_gradcampp.py \
   --messidor_img_dir datasets/messidor-2-combined \
   --max_samples 999 \
   --output_dir "${OUTPUT_DIR}"
+
+echo "==> Copying regenerated Grad-CAM++ maps into CCEM input"
+mkdir -p "${CCEM_INPUT_DIR}"
+
+find "${OUTPUT_DIR}/npy" -name "*_GradCAMpp_compact.npy" -exec cp -f {} "${CCEM_INPUT_DIR}/" \;
+
+echo "==> Verifying copied Grad-CAM++ maps"
+python - <<'PY'
+import glob
+import numpy as np
+import os
+
+paths = sorted(glob.glob("xai_result/ccem_input/*_GradCAMpp_compact.npy"))
+
+zero = []
+for p in paths:
+    hm = np.load(p)
+    if hm.size == 0 or float(np.max(hm)) <= 1e-8 or float(np.sum(hm)) <= 1e-8:
+        zero.append(p)
+
+print(f"Grad-CAM++ maps in ccem_input: {len(paths)}")
+print(f"Zero Grad-CAM++ maps in ccem_input: {len(zero)}")
+
+if zero:
+    print("First zero examples:")
+    for p in zero[:10]:
+        print("  ", p)
+
+raise SystemExit(1 if zero else 0)
+PY

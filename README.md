@@ -46,10 +46,21 @@ src/
     CCEM/          # Consensus fusion of the explanation maps
     improvement_v1/
   Archive/         # Deprecated scripts kept for reference/ablation
-scripts/      # Convenience wrappers around the XAI runners
-results/           # Benchmark reports and visuals
-scripts/XAI_10ex_run/      # Sample XAI outputs used for 10-image benchmarking
+scripts/                  # Convenience wrappers and small test/rerun scripts
+  rerun_gradcampp.sh      # Re-run Grad-CAM++ and refresh compact maps for CCEM input
+  rerun_ccem.sh           # Re-run CCEM adaptive fusion and write evaluation outputs
+results/                  # Benchmark reports and visuals
+scripts/XAI_10ex_run/     # Sample XAI outputs used for 10-image benchmarking
 ```
+
+## Setup
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
 
 ## Model Training
 
@@ -156,6 +167,17 @@ scripts/XAI_10ex_run/CCEM_Evaluation_Results/
   final_ccem_report.txt    # Global mean summary
 ```
 
+Two convenience scripts are also provided for repeated local experiments:
+
+```bash
+bash scripts/rerun_gradcampp.sh
+bash scripts/rerun_ccem.sh
+```
+
+`rerun_gradcampp.sh` clears the previous Grad-CAM++ output and regenerates maps
+for the CCEM input directory. `rerun_ccem.sh` clears the previous CCEM evaluation
+folder and reruns adaptive CCEM fusion with debug outputs enabled.
+
 ## ODExAI Evaluation Metrics
 
 The current report uses the following metrics:
@@ -170,51 +192,14 @@ The current report uses the following metrics:
 | Insertion | Higher is better | AUC after progressively inserting salient pixels; higher means the highlighted evidence restores the model response quickly. |
 | OA | Higher is better | Overall faithfulness balance, computed as `Insertion - Deletion`. |
 
-## 10-Sample XAI Fusion Result
+## XAI Evaluation Result
 
-The following run fused and evaluated 10 MAPLES/MESSIDOR samples:
+The following run fused and evaluated MAPLES/MESSIDOR dataset:
 
 | Method | EBPG | SoftPG | P@1 | DPG | Deletion | Insertion | OA |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| GradCAM++ | 10.49% | 48.43% | 8.22% | 0.499 | 0.8347 | 0.9114 | 0.0767 |
-| Ada-SISE | 14.69% | 43.16% | 8.51% | 0.178 | 0.8304 | 0.8526 | 0.0222 |
-| IG_Smooth | 22.58% | 79.20% | 20.50% | 0.653 | 0.7509 | 0.8542 | 0.1033 |
-| CCEM | 15.48% | 87.50% | 18.17% | 0.401 | 0.7335 | 0.9030 | 0.1696 |
+| GradCAM++ | 5.86% | 43.19% | 2.96% | 0.422 | 0.6944 | 0.7038 | 0.0093 |
+| Ada-SISE | 3.46% | 30.18% | 2.96% | 0.130 | 0.6394 | 0.6456 | 0.0062 |
+| IG_Smooth | 10.53% | 56.83% | 8.71% | 0.344 | 0.6437 | 0.6910 | 0.0474 |
+| CCEM_Adaptive | 9.19% | 68.03% | 7.78% | 0.279 | 0.5719 | 0.6835 | 0.1117 |
 
-### Interpretation
-
-On this small 10-image sanity check, CCEM gives the best overall faithfulness
-score (`OA = 0.1696`). This happens because it combines the lowest deletion AUC
-(`0.7335`) with a high insertion AUC (`0.9030`), meaning the fused regions are
-important to the model response when removed and are also sufficient to recover
-the response when inserted.
-
-For localization, CCEM is not the best on every metric. IG_Smooth has the highest
-EBPG (`22.58%`) and P@1 (`20.50%`), while Ada-SISE has the best DPG (`0.178`).
-However, CCEM has the strongest SoftPG (`87.50%`), suggesting that although the
-absolute maximum or total energy is not always perfectly concentrated inside the
-expert lesion mask, the fused map usually places strong evidence on lesion areas.
-This is consistent with CCEM behaving as a calibrated consensus map: it improves
-faithfulness and soft lesion coverage, but it may trade off some strict energy
-concentration compared with the best single explainer.
-
-Faithfulness diagnostics show that GradCAM++, Ada-SISE, and IG_Smooth each had
-valid faithfulness curves for all 8 evaluated faithfulness samples. CCEM had 7
-valid samples, with 1 undefined/zero-heatmap case. Therefore, the 10-sample result
-is useful for debugging and comparing behavior, but it should not be reported as
-a final conclusion without a larger validation/test set and investigation of the
-zero-map case.
-
-## Setup
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-## Results Directory
-
-Benchmark reports and visuals are under `results/maples_benchmark_results/` and
-`scripts/XAI_10ex_run/`, comparing model performance and XAI localization /
-faithfulness behavior across methods.
