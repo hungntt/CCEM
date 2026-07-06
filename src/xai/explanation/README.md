@@ -28,8 +28,8 @@ src/xai/explanation/
 Convenience wrappers are also available in:
 
 ```text
-test_scripts/test_maples_adasise.py
-test_scripts/test_maples_smoothig.py
+scripts/test_maples_adasise.py
+scripts/test_maples_smoothig.py
 ```
 
 ## Required Inputs
@@ -190,11 +190,11 @@ These options are available in both runners:
 
 ## Outputs
 
-If `--output_dir` is not provided, outputs are written under `test_scripts`:
+If `--output_dir` is not provided, outputs are written under `scripts`:
 
 ```text
-test_scripts/adasise_results/AdaSISE_Eff_<MODEL>_<CBAM|Base>_<MODE>_<YYYYMMDD_HHMM>/
-test_scripts/igsg_results/IGSG_Eff_<MODEL>_<CBAM|Base>_<NT_TYPE>_<YYYYMMDD_HHMM>/
+scripts/adasise_results/AdaSISE_Eff_<MODEL>_<CBAM|Base>_<MODE>_<YYYYMMDD_HHMM>/
+scripts/igsg_results/IGSG_Eff_<MODEL>_<CBAM|Base>_<NT_TYPE>_<YYYYMMDD_HHMM>/
 ```
 
 Each run creates:

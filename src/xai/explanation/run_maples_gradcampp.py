@@ -118,7 +118,7 @@ def run_maples_gradcampp_sample(config: MaplesGradCamPPConfig):
 
         config.output_dir = os.path.join(
             config.project_root,
-            "test_scripts",
+            "scripts",
             "gradcampp_results",
             exp_name,
         )
@@ -199,6 +199,7 @@ def run_maples_gradcampp_sample(config: MaplesGradCamPPConfig):
     }
 
     processed_count = 0
+    fallback_counts = {}
 
     print_step(f"RUNNING COMPACT GRAD-CAM++ | max_samples={config.max_samples}")
 
@@ -267,8 +268,11 @@ def run_maples_gradcampp_sample(config: MaplesGradCamPPConfig):
         # Targeting class 0 because of regression setup
         raw_heatmap, target_class = explainer.generate_heatmap(
             input_tensor=input_tensor,
-            target_class=0 
+            target_class=0
         )
+
+        fallback_reason = getattr(explainer, "last_fallback_reason", "none")
+        fallback_counts[fallback_reason] = fallback_counts.get(fallback_reason, 0) + 1
 
         # Apply shared post-processing pipeline
         heatmap = final_compact_xai_map(
@@ -329,6 +333,9 @@ def run_maples_gradcampp_sample(config: MaplesGradCamPPConfig):
                 "Keep_Percentile": config.keep_percentile,
                 "Gamma": config.gamma,
                 "Blur_Sigma": config.blur_sigma,
+                "GradCAM_Fallback": fallback_reason,
+                "Heatmap_Max": float(np.max(heatmap)) if heatmap.size else 0.0,
+                "Heatmap_Sum": float(np.sum(heatmap)) if heatmap.size else 0.0,
             }
         )
 
@@ -342,6 +349,8 @@ def run_maples_gradcampp_sample(config: MaplesGradCamPPConfig):
 
     csv_path = os.path.join(config.output_dir, "gradcampp_results.csv")
     pd.DataFrame(rows).to_csv(csv_path, index=False)
+
+    print_success(f"Grad-CAM++ fallback counts: {fallback_counts}")
 
     qwk_score = (
         cohen_kappa_score(y_true_list, y_pred_list, weights="quadratic")

@@ -101,7 +101,7 @@ def run_maples_ig_smoothgrad_sample(config: MaplesIGSmoothGradConfig):
 
         config.output_dir = os.path.join(
             config.project_root,
-            "test_scripts",
+            "scripts",
             "igsg_results",
             exp_name,
         )

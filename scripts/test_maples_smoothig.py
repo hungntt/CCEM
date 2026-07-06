@@ -107,7 +107,7 @@ def main():
 
 if __name__ == "__main__":
     """Sample code
-    python test_scripts/test_maples_smoothig.py \
+    python scripts/test_maples_smoothig.py \
         --model B7 \
         --weight_path src/Stage2_Finetune_MESSIDOR_B7_Batch16_CBAM/stage2_best_model.pth \
         --use_cbam \

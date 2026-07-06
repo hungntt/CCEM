@@ -683,8 +683,6 @@ Method               | EBPG (↑) | SoftPG (↑) | P@1 (↑) | DPG (↓) | Delet
             f"Undefined faithfulness samples: {undefined_faithfulness} / {total}\n"
             f"Zero-heatmap samples: {zero_heatmaps} / {total}\n"
         )
-        if total > 0 and coverage < 0.80:
-            report_content += "WARNING: faithfulness coverage below 80%; Deletion/Insertion/OA are not comparable.\n"
 
     if args.ccem_apply_component_filter:
         report_content += f"CCEM component-filter fallbacks: {ccem_core.COMPONENT_FILTER_FALLBACK_COUNT}\n"

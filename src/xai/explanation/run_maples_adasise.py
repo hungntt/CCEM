@@ -104,7 +104,7 @@ def run_maples_adasise_sample(config: MaplesAdaSiseConfig):
 
         config.output_dir = os.path.join(
             config.project_root,
-            "test_scripts",
+            "scripts",
             "adasise_results",
             exp_name,
         )

@@ -314,6 +314,30 @@ def lesion_candidate_prior(image_rgb, valid_mask=None):
     return min_max_normalize(prior).astype(np.float32)
 
 
+def _is_usable_heatmap(heatmap, valid_mask=None, eps=1e-8):
+    hm = np.asarray(heatmap, dtype=np.float32)
+    hm = np.nan_to_num(hm, nan=0.0, posinf=0.0, neginf=0.0)
+    hm = np.maximum(hm, 0.0)
+
+    if valid_mask is not None:
+        mask = np.asarray(valid_mask, dtype=np.float32)
+        if mask.shape != hm.shape:
+            mask = cv2.resize(
+                mask,
+                (hm.shape[1], hm.shape[0]),
+                interpolation=cv2.INTER_NEAREST,
+            )
+        hm = hm * (mask > 0).astype(np.float32)
+
+    return bool(hm.size and float(np.max(hm)) > eps and float(np.sum(hm)) > eps)
+
+
+def _safe_stage(candidate, fallback, valid_mask=None, eps=1e-8):
+    if _is_usable_heatmap(candidate, valid_mask=valid_mask, eps=eps):
+        return candidate.astype(np.float32)
+    return fallback.astype(np.float32)
+
+
 def remove_bad_components(
     heatmap,
     min_area=4,
@@ -322,6 +346,10 @@ def remove_bad_components(
     threshold=0.20,
 ):
     hm = min_max_normalize(heatmap)
+
+    if not _is_usable_heatmap(hm):
+        return hm.astype(np.float32)
+
     binary = (hm >= threshold).astype(np.uint8)
 
     num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
@@ -329,12 +357,10 @@ def remove_bad_components(
         connectivity=8,
     )
 
-    keep = np.zeros_like(binary, dtype=np.float32)
+    keep = np.zeros_like(hm, dtype=np.float32)
 
     for label in range(1, num_labels):
-        area = stats[label, cv2.CC_STAT_AREA]
-        bw = stats[label, cv2.CC_STAT_WIDTH]
-        bh = stats[label, cv2.CC_STAT_HEIGHT]
+        x, y, w, h, area = stats[label]
 
         if area < min_area:
             continue
@@ -342,16 +368,19 @@ def remove_bad_components(
         if area > max_area:
             continue
 
-        aspect = max(bw / (bh + 1e-8), bh / (bw + 1e-8))
+        aspect_ratio = max(w / max(h, 1), h / max(w, 1))
 
-        if aspect > max_aspect_ratio and area > 40:
+        if aspect_ratio > max_aspect_ratio:
             continue
 
         keep[labels == label] = 1.0
 
-    hm = hm * keep
+    filtered = hm * keep
 
-    return min_max_normalize(hm).astype(np.float32)
+    if not _is_usable_heatmap(filtered):
+        return hm.astype(np.float32)
+
+    return min_max_normalize(filtered).astype(np.float32)
 
 
 def final_compact_xai_map(
@@ -365,37 +394,67 @@ def final_compact_xai_map(
 ):
     valid_mask = get_fundus_mask(image_rgb, erode_size=21)
 
-    hm = min_max_normalize(raw_heatmap)
-    hm = hm * valid_mask
+    raw = min_max_normalize(raw_heatmap)
+
+    if not _is_usable_heatmap(raw):
+        return raw.astype(np.float32)
+
+    hm = _safe_stage(raw * valid_mask, raw, valid_mask=None)
+    last_good = hm.copy()
 
     if suppress_optic_disc:
         od_mask = detect_optic_disc_mask(image_rgb, valid_mask=valid_mask)
-        hm = hm * (1.0 - od_mask)
+        candidate = hm * (1.0 - od_mask)
+        hm = _safe_stage(candidate, last_good, valid_mask=valid_mask)
+        last_good = hm.copy()
 
     if use_lesion_prior:
         prior = lesion_candidate_prior(image_rgb, valid_mask=valid_mask)
-        hm = hm * (0.20 + 0.80 * prior)
+        candidate = hm * (0.20 + 0.80 * prior)
+        hm = _safe_stage(candidate, last_good, valid_mask=valid_mask)
+        last_good = hm.copy()
 
     values = hm[valid_mask > 0]
+    positive_values = values[values > 1e-8]
+    threshold_values = positive_values if positive_values.size > 0 else values
 
-    if values.size > 0:
-        threshold = np.percentile(values, keep_percentile)
-        hm = np.where(hm >= threshold, hm, 0.0)
+    if threshold_values.size > 0:
+        thresholded = None
 
-    hm = hm ** gamma
+        for pct in [keep_percentile, 90.0, 85.0, 80.0, 70.0]:
+            pct = float(np.clip(pct, 0.0, 100.0))
+            threshold = np.percentile(threshold_values, pct)
+            candidate = np.where(hm >= threshold, hm, 0.0).astype(np.float32)
+
+            if _is_usable_heatmap(candidate, valid_mask=valid_mask):
+                thresholded = candidate
+                break
+
+        if thresholded is not None:
+            hm = thresholded
+            last_good = hm.copy()
+
+    candidate = hm ** gamma
+    hm = _safe_stage(candidate, last_good, valid_mask=valid_mask)
+    last_good = hm.copy()
 
     if blur_sigma is not None and blur_sigma > 0:
-        hm = cv2.GaussianBlur(hm, (0, 0), blur_sigma)
+        candidate = cv2.GaussianBlur(hm, (0, 0), blur_sigma)
+        hm = _safe_stage(candidate, last_good, valid_mask=valid_mask)
+        last_good = hm.copy()
 
-    hm = hm * valid_mask
+    candidate = hm * valid_mask
+    hm = _safe_stage(candidate, last_good, valid_mask=None)
+    last_good = hm.copy()
 
-    hm = remove_bad_components(
+    candidate = remove_bad_components(
         hm,
         min_area=4,
         max_area=2200,
         max_aspect_ratio=7.0,
         threshold=0.20,
     )
+    hm = _safe_stage(candidate, last_good, valid_mask=None)
 
     return min_max_normalize(hm).astype(np.float32)
 

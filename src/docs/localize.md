@@ -30,7 +30,7 @@ Scripts responsible for building the architecture and fine-tuning the model acro
 ## 3. EXPLAINABLE AI AND CCEM
 The core contribution scripts. These fuse the explanations and benchmark them against Expert Ground Truths.
 XAI methods: explanation
-result: ../test_scripts/XAI_10ex_run (Contains 10 examples from each grade from maples-dr lession mark + messidor images)
+result: ../scripts/XAI_10ex_run (Contains 10 examples from each grade from maples-dr lession mark + messidor images)
 
 ## 4. ARCHIVE
 The `Archive` folder contains deprecated scripts (e.g., LIME implementation, standalone RISE, old fusion logic, and legacy evaluation metrics) that were previously used during the methodology development phase. They are kept for historical reference and ablation studies.

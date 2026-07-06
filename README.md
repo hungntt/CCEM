@@ -46,9 +46,9 @@ src/
     CCEM/          # Consensus fusion of the explanation maps
     improvement_v1/
   Archive/         # Deprecated scripts kept for reference/ablation
-test_scripts/      # Convenience wrappers around the XAI runners
+scripts/      # Convenience wrappers around the XAI runners
 results/           # Benchmark reports and visuals
-test_scripts/XAI_10ex_run/      # Sample XAI outputs used for 10-image benchmarking
+scripts/XAI_10ex_run/      # Sample XAI outputs used for 10-image benchmarking
 ```
 
 ## Model Training
@@ -138,7 +138,7 @@ in the same `--xai_dir`.
 
 ```bash
 python src/xai/CCEM/run_maples_ccem.py \
-  --xai_dir test_scripts/XAI_10ex_run \
+  --xai_dir scripts/XAI_10ex_run \
   --weight_path <checkpoint>.pth \
   --threshold_path <best_thresholds.npy> \
   --model B7 \
@@ -149,7 +149,7 @@ python src/xai/CCEM/run_maples_ccem.py \
 Outputs are written to:
 
 ```text
-test_scripts/XAI_10ex_run/CCEM_Evaluation_Results/
+scripts/XAI_10ex_run/CCEM_Evaluation_Results/
   visuals/                 # Comparison figures
   npy/                     # CCEM heatmaps
   ccem_metrics_details.csv # Per-image metrics
@@ -216,5 +216,5 @@ pip install -r requirements.txt
 ## Results Directory
 
 Benchmark reports and visuals are under `results/maples_benchmark_results/` and
-`test_scripts/XAI_10ex_run/`, comparing model performance and XAI localization /
+`scripts/XAI_10ex_run/`, comparing model performance and XAI localization /
 faithfulness behavior across methods.

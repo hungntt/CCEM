@@ -11,10 +11,10 @@ src/xai/explanation/explainer/rise.py
 src/Archive
 __pycache__
 results
-test_scripts/adasise_results
-test_scripts/igsg_results
-test_scripts/XAI_10ex_run/*
-!test_scripts/XAI_10ex_run/__init__.py
+scripts/adasise_results
+scripts/igsg_results
+scripts/XAI_10ex_run/*
+!scripts/XAI_10ex_run/__init__.py
 archive
 *.zip
 *.npy
@@ -25,3 +25,9 @@ archive
 *.pth
 src/experiments/QWK_terminal/log.txt
 src/**/*.txt
+Untitled.ipynb
+.env
+xai_result/adasise/adasise_report.txt
+xai_result/ccem_input/CCEM_Evaluation_Results/final_ccem_report.txt
+xai_result/gradcampp/gradcampp_report.txt
+xai_result/smoothig/igsg_report.txt

@@ -52,6 +52,37 @@ def normalize_heatmap(heatmap, lower_percentile=1.0, upper_percentile=99.0):
         p_high=upper_percentile,
     )
 
+def robust_normalize(heatmap, p_low=1.0, p_high=99.0, eps=1e-8):
+    """
+    Percentile normalize, but compute percentiles over the positive pixels only.
+    Sparse saliency maps (lesion-sized activations on a mostly-zero background)
+    can have <1% nonzero pixels, so percentiles taken over the full flattened
+    map collapse to zero and erase a genuinely nonzero map.
+    """
+    hm = ensure_2d_float_map(heatmap)
+    hm = np.nan_to_num(hm, nan=0.0, posinf=0.0, neginf=0.0)
+    hm = np.maximum(hm, 0.0).astype(np.float32)
+
+    raw_max = float(np.max(hm)) if hm.size else 0.0
+    raw_min = float(np.min(hm)) if hm.size else 0.0
+    if raw_max - raw_min <= eps:
+        return np.zeros_like(hm, dtype=np.float32)
+
+    positive = hm[hm > eps]
+    if positive.size >= 10:
+        lo, hi = np.percentile(positive, [p_low, p_high])
+    else:
+        lo, hi = np.percentile(hm, [p_low, p_high])
+
+    if hi - lo > eps:
+        clipped = np.clip(hm, lo, hi)
+        out = ((clipped - lo) / (hi - lo + eps)).astype(np.float32)
+        out = np.maximum(out, 0.0)
+        if float(np.max(out)) > eps and float(np.sum(out)) > eps:
+            return out
+
+    return min_max_normalize(hm)
+
 def rank_normalize(hm):
     hm = ensure_2d_float_map(hm)
     if hm.size == 0 or float(np.max(hm) - np.min(hm)) < 1e-8:
@@ -568,7 +599,7 @@ def adaptive_reliability_ccem(
         "IG_Smooth": resize_to_match(ig_smooth, target_shape),
     }
 
-    normalized_maps = {name: percentile_normalize(hm) for name, hm in raw_maps.items()}
+    normalized_maps = {name: robust_normalize(hm) for name, hm in raw_maps.items()}
 
     if retina_mask is None and image is not None:
         retina_mask = make_retina_mask(image)
@@ -613,18 +644,28 @@ def adaptive_reliability_ccem(
     if blur_sigma is not None and blur_sigma > 0:
         fused = cv2.GaussianBlur(fused.astype(np.float32), (0, 0), sigmaX=blur_sigma)
 
-    fused = percentile_normalize(fused)
+    fused = robust_normalize(fused)
 
     if sharpen_gamma is not None and sharpen_gamma > 1.0:
         fused = np.power(fused, sharpen_gamma)
-        fused = percentile_normalize(fused)
+        fused = robust_normalize(fused)
 
     if soft_keep_percentile is not None:
         fused = soft_top_percentile_filter(fused, keep_percentile=soft_keep_percentile)
 
     if float(np.max(fused)) <= 1e-8 or float(np.sum(fused)) <= 1e-8:
-        best_name = max(reliability, key=reliability.get)
-        fused = normalized_maps[best_name]
+        # Fusion collapsed (e.g. blur/sharpen/keep-percentile emptied a sparse
+        # map). Fall back to the most reliable source map, re-normalized with
+        # robust_normalize so a sparse-but-real map isn't discarded again.
+        for name in sorted(reliability, key=reliability.get, reverse=True):
+            candidate = robust_normalize(raw_maps[name])
+            if retina_mask is not None:
+                masked = robust_normalize(candidate * retina_mask)
+                if float(np.max(masked)) > 1e-8:
+                    candidate = masked
+            if float(np.max(candidate)) > 1e-8:
+                fused = candidate
+                break
 
     if return_debug:
         return fused, {"weights": weights, "reliability": reliability}

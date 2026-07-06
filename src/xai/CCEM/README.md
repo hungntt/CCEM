@@ -24,7 +24,7 @@ Run from the project root after generating the Grad-CAM++, AdaSISE, and SmoothIG
 
 ```text
 python src/xai/CCEM/run_maples_ccem.py \
-  --xai_dir test_scripts/XAI_10ex_run \
+  --xai_dir scripts/XAI_10ex_run \
   --weight_path src/experiments/Stage2_Finetune_B7_CBAM/stage2_best_model.pth \
   --threshold_path src/experiments/Stage2_Finetune_B7_CBAM/best_thresholds.npy \
   --model B7 \
@@ -46,7 +46,7 @@ Optional validation tuning is available with `--ccem_grid_search`; use it only o
 ### Output
 
 ```text
-test_scripts/XAI_10ex_run/CCEM_Evaluation_Results/
+scripts/XAI_10ex_run/CCEM_Evaluation_Results/
   visuals/                 # 6-panel comparison figures
   npy/                     # CCEM heatmaps and compatibility CCEM aliases
   ccem_metrics_details.csv # Per-image CCEM and XAI metrics
